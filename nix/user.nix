@@ -89,6 +89,7 @@ in
     jq
     fd
     fastfetch
+    mdcat
     ripgrep
     killall
     lazygit
