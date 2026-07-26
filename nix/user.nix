@@ -78,6 +78,11 @@ let
   slackAgentGateway = pkgs.callPackage ../packages/slack-agent-gateway/package.nix { };
   slackAgentConfigDir = "${config.home.homeDirectory}/.config/slack-agent-gateway";
   slackAgentEnvFile = "${slackAgentConfigDir}/env";
+  slackCopilotMcp = pkgs.callPackage ../packages/slack-copilot-mcp/package.nix { };
+  slackCopilotConfigDir = "${config.home.homeDirectory}/.config/slack-copilot";
+  slackCopilotEnvFile = "${slackCopilotConfigDir}/env";
+  claudeBin = "${config.home.homeDirectory}/.local/bin/claude";
+  codexBin = "${config.home.homeDirectory}/.npm-global/bin/codex";
 in
 {
   home.username = "yuweiyan";
@@ -126,6 +131,7 @@ in
     font-awesome
     outlookMcp
     slackAgentGateway
+    slackCopilotMcp
   ];
 
   fonts.fontconfig.enable = true;
@@ -628,6 +634,8 @@ in
     ".claude/skills/adaptive-professional-communication".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/adaptive-professional-communication";
     ".agents/skills/outlook-mail".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/outlook-mail";
     ".claude/skills/outlook-mail".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/outlook-mail";
+    ".agents/skills/slack-copilot".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/slack-copilot";
+    ".claude/skills/slack-copilot".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/slack-copilot";
     ".agents/skills/wezterm-workspace-manager".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/wezterm-workspace-manager";
     ".claude/skills/wezterm-workspace-manager".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/wezterm-workspace-manager";
     ".agents/skills/latex-tikz-flowcharts".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/latex-tikz-flowcharts";
@@ -643,17 +651,40 @@ in
         command = [ "outlook-mcp" "server" ];
         enabled = true;
       };
+      mcp."slack-copilot" = {
+        type = "local";
+        command = [
+          "slack-copilot-mcp"
+          "server"
+          "--env-file"
+          slackCopilotEnvFile
+        ];
+        enabled = true;
+      };
     };
     ".gemini/config/mcp_config.json".text = builtins.toJSON {
       mcpServers.outlook = {
         command = "outlook-mcp";
         args = [ "server" ];
       };
+      mcpServers."slack-copilot" = {
+        command = "slack-copilot-mcp";
+        args = [ "server" "--env-file" slackCopilotEnvFile ];
+      };
+    };
+    ".gemini/config/skills.json".text = builtins.toJSON {
+      entries = [
+        { path = "${config.home.homeDirectory}/.agents/skills"; }
+      ];
     };
     ".gemini/antigravity-cli/mcp_config.json".text = builtins.toJSON {
       mcpServers.outlook = {
         command = "outlook-mcp";
         args = [ "server" ];
+      };
+      mcpServers."slack-copilot" = {
+        command = "slack-copilot-mcp";
+        args = [ "server" "--env-file" slackCopilotEnvFile ];
       };
     };
 
@@ -680,23 +711,34 @@ in
   };
 
   # Preserve the rest of Claude Code's and Codex's mutable user configuration
-  # while declaratively reconciling just the named Outlook MCP entry.
-  home.activation.configureOutlookMcp = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    if command -v claude >/dev/null 2>&1; then
-      run claude mcp remove --scope user outlook >/dev/null 2>&1 || true
-      run claude mcp add --scope user outlook -- outlook-mcp server
+  # while declaratively reconciling the named personal MCP entries.
+  home.activation.configurePersonalMcps = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    # Home Manager activations do not inherit the interactive shell PATH.
+    # Codex's npm launcher uses `#!/usr/bin/env node`, so provide Node explicitly.
+    export PATH=${lib.escapeShellArg (lib.makeBinPath [ pkgs.nodejs_22 ])}:"$PATH"
+
+    if [ -x ${lib.escapeShellArg claudeBin} ]; then
+      run ${lib.escapeShellArg claudeBin} mcp remove --scope user outlook >/dev/null 2>&1 || true
+      run ${lib.escapeShellArg claudeBin} mcp add --scope user outlook -- outlook-mcp server
+      run ${lib.escapeShellArg claudeBin} mcp remove --scope user slack-copilot >/dev/null 2>&1 || true
+      run ${lib.escapeShellArg claudeBin} mcp add --scope user slack-copilot -- \
+        slack-copilot-mcp server --env-file ${lib.escapeShellArg slackCopilotEnvFile}
     fi
 
-    if command -v codex >/dev/null 2>&1; then
-      run codex mcp remove outlook >/dev/null 2>&1 || true
-      run codex mcp add outlook -- outlook-mcp server
+    if [ -x ${lib.escapeShellArg codexBin} ]; then
+      run ${lib.escapeShellArg codexBin} mcp remove outlook >/dev/null 2>&1 || true
+      run ${lib.escapeShellArg codexBin} mcp add outlook -- outlook-mcp server
+      run ${lib.escapeShellArg codexBin} mcp remove slack-copilot >/dev/null 2>&1 || true
+      run ${lib.escapeShellArg codexBin} mcp add slack-copilot -- \
+        slack-copilot-mcp server --env-file ${lib.escapeShellArg slackCopilotEnvFile}
     fi
   '';
 
-  home.activation.prepareSlackAgentGateway = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.prepareSlackConfiguration = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     run ${pkgs.coreutils}/bin/install -d -m 0700 \
       ${lib.escapeShellArg slackAgentConfigDir} \
-      ${lib.escapeShellArg "${slackAgentConfigDir}/logs"}
+      ${lib.escapeShellArg "${slackAgentConfigDir}/logs"} \
+      ${lib.escapeShellArg slackCopilotConfigDir}
   '';
 
   launchd.agents.slack-agent-gateway = {

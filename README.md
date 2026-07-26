@@ -31,6 +31,7 @@ This repo also bootstraps the terminal-centric, multi-agent workflow described i
 - **Agent-ergonomic tools**: the [AXI](https://github.com/kunchenguid/axi) family (`gh-axi`, `chrome-devtools-axi`) and the [Vercel `skills` CLI](https://github.com/vercel-labs/skills) for installing/managing agent skills
 - **Voice input**: [OpenSuperWhisper](https://github.com/Starmel/OpenSuperWhisper), a local Whisper dictation app, installed as a Homebrew cask
 - **Slack agent gateway**: a local Socket Mode service that routes allowlisted Slack requests to Codex or Claude Code
+- **Personal Slack copilot**: an on-demand MCP server that lets agents read, summarize, translate, search, draft, and reply to Slack after approval
 
 `setup/mac.sh` installs the npm-distributed pieces (Codex, Pi, `skills`, `gnhf`, `gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `tasks-axi`, `no-mistakes`), clones or fast-forwards First Mate, and registers the AXI-family skills globally.
 Homebrew (`nix/host.nix`) handles OpenCode, OpenSuperWhisper, and Antigravity CLI.
@@ -55,6 +56,7 @@ The one thing that stays out regardless: secrets and tokens. Nothing that grants
 - `files/agents/OPINIONS.md`, `files/agents/VOICE.md` - referenced conditionally from `AGENTS.md`, symlinked to `~/OPINIONS.md` and `~/VOICE.md`
 - `files/agents/skills/` - personal cross-harness skills linked into `~/.agents/skills`, including a lazily loaded professional-writing router and a LaTeX/TikZ flowchart workflow with visual reference PDFs
 - `packages/slack-agent-gateway/` - Nix-packaged Slack bridge for Codex and Claude Code
+- `packages/slack-copilot-mcp/` - Nix-packaged personal Slack reader and thread-reply MCP server
 - `tests/` - regression tests for the bootstrap script
 - `blog.md` - local copy of the upstream author's [blog post](https://open.substack.com/pub/kunchenguid/p/how-i-built-a-reproducible-mac-setup?utm_campaign=post-expanded-share&utm_medium=web)
 
@@ -116,6 +118,13 @@ The harness also guards every harness/stub write against sandbox escapes, re-hom
 The rebuild installs `slack-agent-gateway` and manages it as a Home Manager launchd agent.
 Slack credentials stay outside the repository in `~/.config/slack-agent-gateway/env`.
 See [the gateway README](packages/slack-agent-gateway/README.md) for Slack app creation, configuration, security boundaries, and diagnostics.
+
+## Personal Slack copilot
+
+The rebuild installs `slack-copilot-mcp`, registers it with Codex and the other configured agent harnesses, and links the shared Slack workflow skill.
+Slack credentials stay outside the repository in `~/.config/slack-copilot/env`.
+Writes are disabled by default, and the first version can only post replies to existing threads.
+See [the copilot README](packages/slack-copilot-mcp/README.md) for Slack app creation, OAuth scopes, configuration, security boundaries, and diagnostics.
 
 ## Where to add new tools
 

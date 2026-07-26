@@ -1,0 +1,22 @@
+[project]
+name = "slack-copilot-mcp"
+version = "0.1.0"
+description = "Expose a personal Slack workspace to coding agents through MCP"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.27,<2",
+    "slack-sdk>=3.42,<4",
+]
+
+[project.scripts]
+slack-copilot-mcp = "slack_copilot_mcp.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/slack_copilot_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
