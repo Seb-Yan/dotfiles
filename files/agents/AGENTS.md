@@ -6,6 +6,7 @@ These are common instructions for Seb's agents across all scenarios.
 • When writing commit messages, NEVER auto-add your agent name as co-author
 • Never manually modify CHANGELOG.md files or any files that are marked as auto-generated
 • When writing or substantially editing long Markdown files, put each full sentence on its own line. Preserve normal Markdown structure, but avoid wrapping multiple sentences onto one physical line.
+• When generating a flowchart, use the `latex-tikz-flowcharts` skill to create it with LaTeX and TikZ/PGF, then compile it to PDF with pdfTeX.
 • When making technical decisions, do not give much weight to development cost. Instead, prefer quality, simplicity, robustness, scalability, and long term maintainability.
 • When doing bug fixes, always start with reproducing the bug in an E2E setting as closely aligned with how an end user does. This makes sure you find the real problem so your fix will actually solve it.
 • When end-to-end testing a product, be picky about the UI you see and be obsessed with pixel perfection. If something clearly looks off, even if it is not directly related to what you are doing, try to get it fixed along the way.

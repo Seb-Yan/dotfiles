@@ -75,6 +75,9 @@ let
       esac
     '';
   };
+  slackAgentGateway = pkgs.callPackage ../packages/slack-agent-gateway/package.nix { };
+  slackAgentConfigDir = "${config.home.homeDirectory}/.config/slack-agent-gateway";
+  slackAgentEnvFile = "${slackAgentConfigDir}/env";
 in
 {
   home.username = "yuweiyan";
@@ -110,6 +113,8 @@ in
     awscli2
     zip
     unzip
+    texlive.combined.scheme-medium
+    poppler-utils
     # Git worktree manager for running parallel agent sessions without
     # them stepping on each other (github.com/kunchenguid/treehouse)
     treehouse.packages.${pkgs.system}.default
@@ -120,6 +125,7 @@ in
     noto-fonts-color-emoji
     font-awesome
     outlookMcp
+    slackAgentGateway
   ];
 
   fonts.fontconfig.enable = true;
@@ -624,6 +630,8 @@ in
     ".claude/skills/outlook-mail".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/outlook-mail";
     ".agents/skills/wezterm-workspace-manager".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/wezterm-workspace-manager";
     ".claude/skills/wezterm-workspace-manager".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/wezterm-workspace-manager";
+    ".agents/skills/latex-tikz-flowcharts".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/latex-tikz-flowcharts";
+    ".claude/skills/latex-tikz-flowcharts".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/latex-tikz-flowcharts";
 
     # OpenCode and Antigravity can consume the shared Outlook MCP server from
     # declarative JSON. Claude Code and Codex keep MCP entries inside mutable
@@ -684,4 +692,45 @@ in
       run codex mcp add outlook -- outlook-mcp server
     fi
   '';
+
+  home.activation.prepareSlackAgentGateway = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${pkgs.coreutils}/bin/install -d -m 0700 \
+      ${lib.escapeShellArg slackAgentConfigDir} \
+      ${lib.escapeShellArg "${slackAgentConfigDir}/logs"}
+  '';
+
+  launchd.agents.slack-agent-gateway = {
+    enable = true;
+    config = {
+      ProgramArguments = [
+        "${slackAgentGateway}/bin/slack-agent-gateway"
+        "serve"
+        "--env-file"
+        slackAgentEnvFile
+      ];
+      EnvironmentVariables = {
+        HOME = config.home.homeDirectory;
+        LANG = "en_US.UTF-8";
+        PATH = lib.concatStringsSep ":" [
+          "${config.home.homeDirectory}/.local/bin"
+          "${config.home.homeDirectory}/.npm-global/bin"
+          "${config.home.homeDirectory}/.nix-profile/bin"
+          "/etc/profiles/per-user/yuweiyan/bin"
+          "/run/current-system/sw/bin"
+          "/usr/bin"
+          "/bin"
+        ];
+        USER = config.home.username;
+      };
+      WorkingDirectory = config.home.homeDirectory;
+      RunAtLoad = true;
+      KeepAlive = {
+        Crashed = true;
+      };
+      ProcessType = "Background";
+      ThrottleInterval = 30;
+      StandardOutPath = "${slackAgentConfigDir}/logs/stdout.log";
+      StandardErrorPath = "${slackAgentConfigDir}/logs/stderr.log";
+    };
+  };
 }

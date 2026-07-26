@@ -1,5 +1,10 @@
 result
 result-*
+.DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
 
 # no-mistakes pipeline evidence should never be committed to this public repo
 .no-mistakes/

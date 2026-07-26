@@ -30,6 +30,7 @@ This repo also bootstraps the terminal-centric, multi-agent workflow described i
   Run `firstmate` from the shell to launch Claude there, or pass another harness such as `firstmate codex`.
 - **Agent-ergonomic tools**: the [AXI](https://github.com/kunchenguid/axi) family (`gh-axi`, `chrome-devtools-axi`) and the [Vercel `skills` CLI](https://github.com/vercel-labs/skills) for installing/managing agent skills
 - **Voice input**: [OpenSuperWhisper](https://github.com/Starmel/OpenSuperWhisper), a local Whisper dictation app, installed as a Homebrew cask
+- **Slack agent gateway**: a local Socket Mode service that routes allowlisted Slack requests to Codex or Claude Code
 
 `setup/mac.sh` installs the npm-distributed pieces (Codex, Pi, `skills`, `gnhf`, `gh-axi`, `chrome-devtools-axi`, `lavish-axi`, `tasks-axi`, `no-mistakes`), clones or fast-forwards First Mate, and registers the AXI-family skills globally.
 Homebrew (`nix/host.nix`) handles OpenCode, OpenSuperWhisper, and Antigravity CLI.
@@ -52,7 +53,8 @@ The one thing that stays out regardless: secrets and tokens. Nothing that grants
 - `files/.config/wezterm/wezterm.lua` - WezTerm config linked into place
 - `files/agents/AGENTS.md` - global agent memory file, symlinked into every harness's expected location
 - `files/agents/OPINIONS.md`, `files/agents/VOICE.md` - referenced conditionally from `AGENTS.md`, symlinked to `~/OPINIONS.md` and `~/VOICE.md`
-- `files/agents/skills/` - personal cross-harness skills linked into `~/.agents/skills`, including a lazily loaded professional-writing router that selects role, thinking approach, tone, and format only for explicit communication tasks
+- `files/agents/skills/` - personal cross-harness skills linked into `~/.agents/skills`, including a lazily loaded professional-writing router and a LaTeX/TikZ flowchart workflow with visual reference PDFs
+- `packages/slack-agent-gateway/` - Nix-packaged Slack bridge for Codex and Claude Code
 - `tests/` - regression tests for the bootstrap script
 - `blog.md` - local copy of the upstream author's [blog post](https://open.substack.com/pub/kunchenguid/p/how-i-built-a-reproducible-mac-setup?utm_campaign=post-expanded-share&utm_medium=web)
 
@@ -108,6 +110,12 @@ bash tests/mac_setup_test.sh
 
 It runs the real script logic with stub executables for `curl`, `sh`, `nix`, `darwin-rebuild`, `sudo`, and `bash`, covering both a fresh-machine single-pass bootstrap and the already-bootstrapped fast path.
 The harness also guards every harness/stub write against sandbox escapes, re-homes `NVM_DIR` under the sandboxed `HOME`, and unsets inherited `BASH_ENV`/`ENV` hooks before invoking the script under test.
+
+## Slack agent gateway
+
+The rebuild installs `slack-agent-gateway` and manages it as a Home Manager launchd agent.
+Slack credentials stay outside the repository in `~/.config/slack-agent-gateway/env`.
+See [the gateway README](packages/slack-agent-gateway/README.md) for Slack app creation, configuration, security boundaries, and diagnostics.
 
 ## Where to add new tools
 

@@ -1,0 +1,28 @@
+display_information:
+  name: Local Coding Agent
+  description: Routes authorized Slack requests to Codex or Claude Code
+  background_color: "#1f2937"
+features:
+  bot_user:
+    display_name: Local Coding Agent
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:history
+      - chat:write
+      - groups:history
+      - im:history
+      - mpim:history
+      - reactions:write
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_mention
+      - message.im
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
