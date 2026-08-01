@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "Expose a personal Slack workspace to coding agents through MCP"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp>=1.27,<2",
-    "slack-sdk>=3.42,<4",
+    "mcp>=1.26,<2",
+    "slack-sdk>=3.41,<4",
 ]
 
 [dependency-groups]

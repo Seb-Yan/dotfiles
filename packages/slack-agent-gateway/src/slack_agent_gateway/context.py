@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import re
-from html import escape
 from collections.abc import Mapping, Sequence
+from html import escape
 from typing import Any
 
 _MENTION = re.compile(r"<@[A-Z0-9]+>")

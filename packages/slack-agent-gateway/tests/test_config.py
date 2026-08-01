@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from slack_agent_gateway.config import ConfigError, GatewayConfig, load_env_file
 
 
