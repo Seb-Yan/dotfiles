@@ -2,6 +2,18 @@
 
 let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
+  vscodeBin = "/opt/homebrew/bin/code";
+  vscodeExtensions = [
+    "ms-python.python"
+    "charliermarsh.ruff"
+    "ms-toolsai.jupyter"
+    "redhat.vscode-yaml"
+    "tamasfe.even-better-toml"
+    "jnoortheen.nix-ide"
+    "yzhang.markdown-all-in-one"
+    "james-yu.latex-workshop"
+    "editorconfig.editorconfig"
+  ];
 in
 
 {
@@ -247,4 +259,67 @@ in
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/AGENTS.md";
   home.file.".config/opencode/AGENTS.md".source =
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/AGENTS.md";
+  home.file.".pi/agent/AGENTS.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/AGENTS.md";
+  home.file.".gemini/AGENTS.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/AGENTS.md";
+  home.file.".gemini/GEMINI.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/AGENTS.md";
+
+  home.file."OPINIONS.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/OPINIONS.md";
+  home.file."VOICE.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/VOICE.md";
+
+  home.file."Library/Application Support/Code/User/settings.json".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/vscode/settings.json";
+  home.file.".claude/hooks/bash-guard.sh".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.claude/hooks/bash-guard.sh";
+
+  home.file.".agents/skills/adaptive-professional-communication".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/adaptive-professional-communication";
+  home.file.".claude/skills/adaptive-professional-communication".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/adaptive-professional-communication";
+  home.file.".agents/skills/outlook-mail".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/outlook-mail";
+  home.file.".claude/skills/outlook-mail".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/outlook-mail";
+  home.file.".agents/skills/slack-copilot".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/slack-copilot";
+  home.file.".claude/skills/slack-copilot".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/slack-copilot";
+  home.file.".agents/skills/wezterm-workspace-manager".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/wezterm-workspace-manager";
+  home.file.".claude/skills/wezterm-workspace-manager".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/wezterm-workspace-manager";
+  home.file.".agents/skills/latex-tikz-flowcharts".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/latex-tikz-flowcharts";
+  home.file.".claude/skills/latex-tikz-flowcharts".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/latex-tikz-flowcharts";
+  home.file.".agents/skills/beamer".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/beamer";
+  home.file.".claude/skills/beamer".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.agents/skills/beamer";
+
+  home.file.".claude/skills/github-multi-account/SKILL.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.claude/skills/github-multi-account/SKILL.md";
+  home.file.".claude/skills/setup-bitbucket-mirror/SKILL.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.claude/skills/setup-bitbucket-mirror/SKILL.md";
+  home.file.".claude/skills/setup-dev-trunk/SKILL.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.claude/skills/setup-dev-trunk/SKILL.md";
+  home.file.".claude/skills/ship-pr/SKILL.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.claude/skills/ship-pr/SKILL.md";
+
+  home.activation.installVscodeExtensions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ -x ${lib.escapeShellArg vscodeBin} ]; then
+      installed_extensions="$(${lib.escapeShellArg vscodeBin} --list-extensions)"
+      for extension in ${lib.concatMapStringsSep " " lib.escapeShellArg vscodeExtensions}; do
+        if ! printf '%s\n' "$installed_extensions" | ${pkgs.gnugrep}/bin/grep -Fqx "$extension"; then
+          run ${lib.escapeShellArg vscodeBin} --install-extension "$extension"
+        fi
+      done
+    else
+      echo "warning: VS Code CLI not found at ${vscodeBin}; extensions will be installed on the next rebuild"
+    fi
+  '';
 }

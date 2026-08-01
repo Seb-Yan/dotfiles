@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+	cat <<'EOF'
+bin: wezterm-workspace
+description: Inspect and organize live WezTerm workspaces, tabs, and panes
+commands[7]{name,usage}:
+  list,list
+  create,create NAME [--cwd PATH] [--title TITLE]
+  layout,layout dev NAME [--cwd PATH]
+  new-tab,new-tab TITLE --window-id ID [--cwd PATH]
+  split,split left|right|top|bottom --pane-id ID [--cwd PATH]
+  rename-tab,rename-tab TITLE (--tab-id ID | --pane-id ID)
+  rename-workspace,rename-workspace NEW_NAME [--workspace OLD_NAME | --pane-id ID]
+EOF
+}
+
+fail() {
+	printf 'error: %s\n' "$1" >&2
+	exit 2
+}
+
+need_value() {
+	[[ $# -ge 2 ]] || fail "$1 requires a value"
+}
+
+require_command() {
+	command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
+}
+
+require_command wezterm
+
+command_name="${1:-help}"
+if [[ $# -gt 0 ]]; then
+	shift
+fi
+
+case "$command_name" in
+	help | --help | -h)
+		usage
+		;;
+	list)
+		[[ $# -eq 0 ]] || fail "list accepts no arguments"
+		exec wezterm cli list
+		;;
+	create)
+		[[ $# -ge 1 ]] || fail "create requires a workspace name"
+		workspace=$1
+		shift
+		cwd=""
+		title=""
+		while [[ $# -gt 0 ]]; do
+			case "$1" in
+				--cwd)
+					need_value "$@"
+					cwd=$2
+					shift 2
+					;;
+				--title)
+					need_value "$@"
+					title=$2
+					shift 2
+					;;
+				*) fail "unknown create option: $1" ;;
+			esac
+		done
+		args=(wezterm cli spawn --new-window --workspace "$workspace")
+		[[ -z "$cwd" ]] || args+=(--cwd "$cwd")
+		pane_id=$("${args[@]}")
+		if [[ -n "$title" ]]; then
+			wezterm cli set-tab-title --pane-id "$pane_id" "$title"
+		fi
+		printf 'workspace=%s\npane_id=%s\n' "$workspace" "$pane_id"
+		;;
+	layout)
+		[[ ${1:-} == "dev" ]] || fail "only the dev layout is supported"
+		[[ $# -ge 2 ]] || fail "layout dev requires a workspace name"
+		shift
+		workspace=$1
+		shift
+		cwd=""
+		while [[ $# -gt 0 ]]; do
+			case "$1" in
+				--cwd)
+					need_value "$@"
+					cwd=$2
+					shift 2
+					;;
+				*) fail "unknown layout option: $1" ;;
+			esac
+		done
+		require_command jq
+		spawn_args=(wezterm cli spawn --new-window --workspace "$workspace")
+		[[ -z "$cwd" ]] || spawn_args+=(--cwd "$cwd")
+		editor_pane=$("${spawn_args[@]}")
+		wezterm cli set-tab-title --pane-id "$editor_pane" "📌 editor"
+		window_id=$(wezterm cli list --format json | jq -er --argjson pane "$editor_pane" '.[] | select(.pane_id == $pane) | .window_id')
+		for title in server tests logs; do
+			tab_args=(wezterm cli spawn --window-id "$window_id")
+			[[ -z "$cwd" ]] || tab_args+=(--cwd "$cwd")
+			pane_id=$("${tab_args[@]}")
+			wezterm cli set-tab-title --pane-id "$pane_id" "$title"
+		done
+		printf 'workspace=%s\nwindow_id=%s\neditor_pane_id=%s\n' "$workspace" "$window_id" "$editor_pane"
+		;;
+	new-tab)
+		[[ $# -ge 1 ]] || fail "new-tab requires a title"
+		title=$1
+		shift
+		window_id=""
+		cwd=""
+		while [[ $# -gt 0 ]]; do
+			case "$1" in
+				--window-id)
+					need_value "$@"
+					window_id=$2
+					shift 2
+					;;
+				--cwd)
+					need_value "$@"
+					cwd=$2
+					shift 2
+					;;
+				*) fail "unknown new-tab option: $1" ;;
+			esac
+		done
+		[[ -n "$window_id" ]] || fail "new-tab requires --window-id"
+		args=(wezterm cli spawn --window-id "$window_id")
+		[[ -z "$cwd" ]] || args+=(--cwd "$cwd")
+		pane_id=$("${args[@]}")
+		wezterm cli set-tab-title --pane-id "$pane_id" "$title"
+		printf 'window_id=%s\npane_id=%s\ntitle=%s\n' "$window_id" "$pane_id" "$title"
+		;;
+	split)
+		[[ $# -ge 1 ]] || fail "split requires a direction"
+		direction=$1
+		shift
+		case "$direction" in
+			left | right | top | bottom) ;;
+			*) fail "split direction must be left, right, top, or bottom" ;;
+		esac
+		pane_id=""
+		cwd=""
+		while [[ $# -gt 0 ]]; do
+			case "$1" in
+				--pane-id)
+					need_value "$@"
+					pane_id=$2
+					shift 2
+					;;
+				--cwd)
+					need_value "$@"
+					cwd=$2
+					shift 2
+					;;
+				*) fail "unknown split option: $1" ;;
+			esac
+		done
+		[[ -n "$pane_id" ]] || fail "split requires --pane-id"
+		args=(wezterm cli split-pane "--$direction" --pane-id "$pane_id")
+		[[ -z "$cwd" ]] || args+=(--cwd "$cwd")
+		new_pane_id=$("${args[@]}")
+		printf 'pane_id=%s\n' "$new_pane_id"
+		;;
+	rename-tab)
+		[[ $# -ge 1 ]] || fail "rename-tab requires a title"
+		title=$1
+		shift
+		[[ $# -eq 2 ]] || fail "rename-tab requires exactly one --tab-id or --pane-id target"
+		case "$1" in
+			--tab-id | --pane-id) target_option=$1 ;;
+			*) fail "rename-tab requires --tab-id or --pane-id" ;;
+		esac
+		wezterm cli set-tab-title "$target_option" "$2" "$title"
+		printf 'title=%s\n' "$title"
+		;;
+	rename-workspace)
+		[[ $# -ge 1 ]] || fail "rename-workspace requires a new name"
+		new_name=$1
+		shift
+		args=(wezterm cli rename-workspace)
+		if [[ $# -gt 0 ]]; then
+			[[ $# -eq 2 ]] || fail "rename-workspace accepts one target"
+			case "$1" in
+				--workspace | --pane-id) args+=("$1" "$2") ;;
+				*) fail "rename-workspace target must be --workspace or --pane-id" ;;
+			esac
+		fi
+		"${args[@]}" "$new_name"
+		printf 'workspace=%s\n' "$new_name"
+		;;
+	*)
+		fail "unknown command: $command_name"
+		;;
+esac

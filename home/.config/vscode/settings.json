@@ -1,0 +1,59 @@
+{
+    "files.autoSave": "onFocusChange",
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "files.exclude": {
+        "**/.DS_Store": true,
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/.ruff_cache": true
+    },
+    "[markdown]": {
+        "files.trimTrailingWhitespace": false
+    },
+    "editor.formatOnSave": false,
+    "editor.rulers": [
+        88
+    ],
+    "editor.renderWhitespace": "boundary",
+    "editor.minimap.enabled": false,
+    "editor.bracketPairColorization.enabled": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.suggestSelection": "first",
+    "editor.linkedEditing": true,
+    "python.useEnvironmentsExtension": true,
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoImportCompletions": true,
+    "python.terminal.activateEnvironment": true,
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+        },
+        "editor.tabSize": 4
+    },
+    "notebook.formatOnSave.enabled": true,
+    "nix.enableLanguageServer": true,
+    "nix.serverPath": "nil",
+    "yaml.schemaStore.enable": true,
+    "[yaml]": {
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
+    "[toml]": {
+        "editor.defaultFormatter": "tamasfe.even-better-toml"
+    },
+    "terminal.integrated.defaultProfile.osx": "zsh",
+    "terminal.integrated.inheritEnv": true,
+    "git.autofetch": true,
+    "git.openRepositoryInParentFolders": "never",
+    "security.workspace.trust.enabled": true,
+    "security.workspace.trust.untrustedFiles": "newWindow",
+    "telemetry.telemetryLevel": "off",
+    "workbench.startupEditor": "none",
+    "workbench.editor.enablePreview": false,
+    "window.commandCenter": true,
+    "explorer.confirmDelete": true,
+    "explorer.confirmDragAndDrop": true
+}
