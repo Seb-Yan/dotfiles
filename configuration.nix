@@ -87,6 +87,7 @@
       "amethyst"
       "antigravity-cli"
       "claude-code"
+      "codex"
       "font-hack-nerd-font"
       "ngrok"
       "opensuperwhisper"

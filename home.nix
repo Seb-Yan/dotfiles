@@ -94,7 +94,7 @@ let
   slackCopilotConfigDir = "${config.home.homeDirectory}/.config/slack-copilot";
   slackCopilotEnvFile = "${slackCopilotConfigDir}/env";
   claudeBin = "${config.home.homeDirectory}/.local/bin/claude";
-  codexBin = "${config.home.homeDirectory}/.npm-global/bin/codex";
+  codexBin = "/opt/homebrew/bin/codex";
 in
 
 {
@@ -186,6 +186,18 @@ in
     initContent = lib.mkAfter ''
       bindkey '^f' autosuggest-accept
 
+      if [ -x "$HOME/miniconda3/bin/conda" ]; then
+        __conda_setup="$("$HOME/miniconda3/bin/conda" shell.zsh hook 2>/dev/null)"
+        if [ $? -eq 0 ]; then
+          eval "$__conda_setup"
+        elif [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
+          . "$HOME/miniconda3/etc/profile.d/conda.sh"
+        else
+          export PATH="$HOME/miniconda3/bin:$PATH"
+        fi
+        unset __conda_setup
+      fi
+
       # Keep Nix-managed tools ahead of conda and Homebrew on PATH.
       export PATH="/etc/profiles/per-user/${user}/bin:$HOME/.nix-profile/bin:/run/current-system/sw/bin:$PATH"
 
@@ -228,6 +240,51 @@ in
           return 1
         fi
       }
+
+      require_no_mistakes_config() {
+        if [ ! -f "$HOME/.no-mistakes/config.yaml" ]; then
+          echo "No no-mistakes config found at $HOME/.no-mistakes/config.yaml" >&2
+          return 1
+        fi
+      }
+
+      use-claude() {
+        local effort="''${1:-medium}"
+        require_no_mistakes_config || return 1
+        sed -i ''' 's/^agent: .*/agent: claude/' "$HOME/.no-mistakes/config.yaml"
+        EFFORT="$effort" perl -0777 -pi -e \
+          's/(--effort\n\s+)\w+/$1$ENV{EFFORT}/' "$HOME/.no-mistakes/config.yaml"
+        echo "Switched to claude (effort: $effort)"
+      }
+
+      use-codex() {
+        local effort="''${1:-medium}"
+        require_no_mistakes_config || return 1
+        sed -i ''' 's/^agent: .*/agent: codex/' "$HOME/.no-mistakes/config.yaml"
+        EFFORT="$effort" perl -pi -e \
+          's/(model_reasoning_effort=")\w+(")/$1$ENV{EFFORT}$2/' "$HOME/.no-mistakes/config.yaml"
+        echo "Switched to codex (effort: $effort)"
+      }
+
+      use-opencode() {
+        require_no_mistakes_config || return 1
+        sed -i ''' 's/^agent: .*/agent: opencode/' "$HOME/.no-mistakes/config.yaml"
+        echo "Switched to opencode"
+      }
+
+      show-agent() {
+        require_no_mistakes_config || return 1
+        local agent
+        agent=$(awk '/^agent:/ {print $2}' "$HOME/.no-mistakes/config.yaml")
+        local effort="N/A"
+        if [ "$agent" = "claude" ]; then
+          effort=$(awk '/claude:/ {flag=1} flag && /--effort/ {getline; print $2; exit}' "$HOME/.no-mistakes/config.yaml")
+        elif [ "$agent" = "codex" ]; then
+          effort=$(awk -F'"' '/codex:/ {flag=1} flag && /model_reasoning_effort=/ {print $2; exit}' "$HOME/.no-mistakes/config.yaml")
+        fi
+        echo "Active Agent: $agent"
+        echo "Effort Level: $effort"
+      }
     '';
     shellAliases = {
       ".." = "cd ..";
@@ -236,6 +293,7 @@ in
       push = "git push";
       pushf = "git push --force";
       pull = "git pull";
+      reset = "git reset --soft HEAD^";
       m = "git switch main";
       mst = "git switch master";
       rebasem = "git rebase -i main";

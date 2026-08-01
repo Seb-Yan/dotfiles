@@ -743,8 +743,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mcp", specifier = ">=1.27,<2" },
-    { name = "slack-sdk", specifier = ">=3.42,<4" },
+    { name = "mcp", specifier = ">=1.26,<2" },
+    { name = "slack-sdk", specifier = ">=3.41,<4" },
 ]
 
 [package.metadata.requires-dev]
