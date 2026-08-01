@@ -1,0 +1,23 @@
+{
+  "skill_name": "wezterm-workspace-manager",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "请帮我为 ~/github/my-api 创建一个名为 my-api 的 WezTerm 开发 workspace，包含 editor、server、tests 和 logs。不要启动任何服务。",
+      "expected_output": "Uses the bundled dev layout command, creates named shell tabs, and does not send workload commands.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我同时维护三个项目，应该怎样用 WezTerm workspace、tab 和 pane 来保持上下文清晰？只给建议，不要修改当前会话。",
+      "expected_output": "Provides concise workspace, tab, and pane guidance without running mutating commands.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "把 WezTerm tab 12 改名为 📌 production logs。",
+      "expected_output": "Inspects live state, confirms the explicit target, and invokes rename-tab without sending pane input.",
+      "files": []
+    }
+  ]
+}
