@@ -12,13 +12,18 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
+
+    treehouse = {
+      url = "github:kunchenguid/treehouse";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = inputs@{ self, nix-darwin, nix-homebrew, home-manager, nixpkgs }:
+  outputs = inputs@{ self, nix-darwin, nix-homebrew, home-manager, nixpkgs, treehouse }:
     let
       # The one username line to change if this isn't your machine.
       # bootstrap.sh offers to rewrite this for you if your macOS username differs.
-      user = "kunchen";
+      user = "yuweiyan";
     in
     {
       darwinConfigurations."mac" = nix-darwin.lib.darwinSystem {
@@ -30,7 +35,8 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = { inherit user; };
+            home-manager.backupFileExtension = "backup";
+            home-manager.extraSpecialArgs = { inherit treehouse user; };
             home-manager.users.${user} = import ./home.nix;
           }
         ];
