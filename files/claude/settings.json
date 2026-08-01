@@ -124,6 +124,7 @@
     "enabled": true,
     "mode": "hold"
   },
+  "autoMemoryEnabled": false,
   "autoMemoryDirectory": "~/.claude/memory",
   "theme": "dark-daltonized",
   "preferredNotifChannel": "terminal_bell",

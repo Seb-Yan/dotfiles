@@ -8,6 +8,12 @@ dependencies = [
     "slack-sdk>=3.42,<4",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=1,<2",
+    "pytest>=9,<10",
+]
+
 [project.scripts]
 slack-copilot-mcp = "slack_copilot_mcp.cli:main"
 
@@ -20,3 +26,4 @@ packages = ["src/slack_copilot_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

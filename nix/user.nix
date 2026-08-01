@@ -83,6 +83,18 @@ let
   slackCopilotEnvFile = "${slackCopilotConfigDir}/env";
   claudeBin = "${config.home.homeDirectory}/.local/bin/claude";
   codexBin = "${config.home.homeDirectory}/.npm-global/bin/codex";
+  vscodeBin = "/opt/homebrew/bin/code";
+  vscodeExtensions = [
+    "ms-python.python"
+    "charliermarsh.ruff"
+    "ms-toolsai.jupyter"
+    "redhat.vscode-yaml"
+    "tamasfe.even-better-toml"
+    "jnoortheen.nix-ide"
+    "yzhang.markdown-all-in-one"
+    "james-yu.latex-workshop"
+    "editorconfig.editorconfig"
+  ];
 in
 {
   home.username = "yuweiyan";
@@ -122,7 +134,7 @@ in
     poppler-utils
     # Git worktree manager for running parallel agent sessions without
     # them stepping on each other (github.com/kunchenguid/treehouse)
-    treehouse.packages.${pkgs.system}.default
+    treehouse.packages.${pkgs.stdenv.hostPlatform.system}.default
     nerd-fonts.hack
     roboto
     noto-fonts
@@ -609,6 +621,7 @@ in
 
   home.file = {
     ".config/wezterm".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/.config/wezterm";
+    "Library/Application Support/Code/User/settings.json".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/vscode/settings.json";
 
     # Global agent memory file, shared across harnesses. Each one insists on
     # its own path/filename (unlike skills, which several of them already
@@ -640,6 +653,8 @@ in
     ".claude/skills/wezterm-workspace-manager".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/wezterm-workspace-manager";
     ".agents/skills/latex-tikz-flowcharts".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/latex-tikz-flowcharts";
     ".claude/skills/latex-tikz-flowcharts".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/latex-tikz-flowcharts";
+    ".agents/skills/beamer".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/beamer";
+    ".claude/skills/beamer".source = config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/files/agents/skills/beamer";
 
     # OpenCode and Antigravity can consume the shared Outlook MCP server from
     # declarative JSON. Claude Code and Codex keep MCP entries inside mutable
@@ -739,6 +754,21 @@ in
       ${lib.escapeShellArg slackAgentConfigDir} \
       ${lib.escapeShellArg "${slackAgentConfigDir}/logs"} \
       ${lib.escapeShellArg slackCopilotConfigDir}
+  '';
+
+  # The app itself is installed by nix-darwin's Homebrew cask. Keep the
+  # extension set reproducible without coupling VS Code releases to nixpkgs.
+  home.activation.installVscodeExtensions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ -x ${lib.escapeShellArg vscodeBin} ]; then
+      installed_extensions="$(${lib.escapeShellArg vscodeBin} --list-extensions)"
+      for extension in ${lib.concatMapStringsSep " " lib.escapeShellArg vscodeExtensions}; do
+        if ! printf '%s\n' "$installed_extensions" | ${pkgs.gnugrep}/bin/grep -Fqx "$extension"; then
+          run ${lib.escapeShellArg vscodeBin} --install-extension "$extension"
+        fi
+      done
+    else
+      echo "warning: VS Code CLI not found at ${vscodeBin}; extensions will be installed on the next rebuild"
+    fi
   '';
 
   launchd.agents.slack-agent-gateway = {

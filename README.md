@@ -52,9 +52,10 @@ The one thing that stays out regardless: secrets and tokens. Nothing that grants
 - `nix/host.nix` - machine-level macOS config (nix-darwin), Homebrew brews/casks
 - `nix/user.nix` - user environment: packages, shell, git, tmux, fonts, dotfiles (Home Manager)
 - `files/.config/wezterm/wezterm.lua` - WezTerm config linked into place
+- `files/vscode/settings.json` - VS Code user settings linked into the macOS application support directory
 - `files/agents/AGENTS.md` - global agent memory file, symlinked into every harness's expected location
 - `files/agents/OPINIONS.md`, `files/agents/VOICE.md` - referenced conditionally from `AGENTS.md`, symlinked to `~/OPINIONS.md` and `~/VOICE.md`
-- `files/agents/skills/` - personal cross-harness skills linked into `~/.agents/skills`, including a lazily loaded professional-writing router and a LaTeX/TikZ flowchart workflow with visual reference PDFs
+- `files/agents/skills/` - personal cross-harness skills linked into `~/.agents/skills`, including professional communication, LaTeX/TikZ flowcharts, and Beamer slide creation
 - `packages/slack-agent-gateway/` - Nix-packaged Slack bridge for Codex and Claude Code
 - `packages/slack-copilot-mcp/` - Nix-packaged personal Slack reader and thread-reply MCP server
 - `tests/` - regression tests for the bootstrap script
@@ -100,6 +101,13 @@ This alias is included in the shell config and expands to the repo path used in 
 ```bash
 sudo /run/current-system/sw/bin/darwin-rebuild switch --flake ~/github/dotfiles-mac-nix#mac
 ```
+
+## Visual Studio Code
+
+The rebuild installs the latest stable `visual-studio-code` Homebrew cask.
+Home Manager links `files/vscode/settings.json` into VS Code's user configuration directory and installs the extension set declared in `nix/user.nix`.
+The extension installer is idempotent, so subsequent rebuilds only install extensions that are missing.
+Settings Sync is intentionally not enabled because an old cloud configuration could overwrite the repository-managed settings.
 
 ## Testing
 

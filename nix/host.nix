@@ -16,6 +16,9 @@
       "opencode"
     ];
     casks = [
+      # Official stable Visual Studio Code release. Extensions and user
+      # settings are managed by Home Manager in nix/user.nix.
+      "visual-studio-code"
       "wezterm"
       "amethyst"
       # Free/open-source local Whisper dictation app used for voice-driven
