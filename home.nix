@@ -14,6 +14,87 @@ let
     "james-yu.latex-workshop"
     "editorconfig.editorconfig"
   ];
+  outlookMcpPackage = "@softeria/ms-365-mcp-server@0.131.3";
+  outlookMcp = pkgs.writeShellApplication {
+    name = "outlook-mcp";
+    runtimeInputs = [ pkgs.nodejs_22 ];
+    text = ''
+      package=${lib.escapeShellArg outlookMcpPackage}
+      scopes="User.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.Read"
+
+      run_server() {
+        exec npx --yes "$package" \
+          --preset outlook \
+          --allowed-scopes "$scopes" \
+          --toon \
+          "$@"
+      }
+
+      case "''${1:-}" in
+        server)
+          shift
+          run_server "$@"
+          ;;
+        login)
+          shift
+          exec npx --yes "$package" \
+            --preset outlook \
+            --allowed-scopes "$scopes" \
+            --login \
+            "$@"
+          ;;
+        logout)
+          shift
+          exec npx --yes "$package" --logout "$@"
+          ;;
+        accounts)
+          shift
+          exec npx --yes "$package" --list-accounts "$@"
+          ;;
+        permissions)
+          shift
+          exec npx --yes "$package" \
+            --preset outlook \
+            --allowed-scopes "$scopes" \
+            --list-permissions \
+            "$@"
+          ;;
+        help|--help|-h)
+          printf '%s\n' \
+            'bin: outlook-mcp' \
+            'description: Run and authenticate the shared Outlook MCP server' \
+            'commands[5]{name,description}:' \
+            '  server,Start the stdio MCP server' \
+            '  login,Authenticate an Outlook account with Microsoft device login' \
+            '  logout,Remove cached Outlook authentication' \
+            '  accounts,List authenticated Outlook accounts' \
+            '  permissions,Show the Microsoft Graph permissions requested'
+          ;;
+        "")
+          printf '%s\n' \
+            'bin: outlook-mcp' \
+            'description: Run and authenticate the shared Outlook MCP server' \
+            'status: setup requires a one-time human login' \
+            'help[2]:' \
+            '  Run outlook-mcp login to authenticate' \
+            '  Run outlook-mcp accounts to inspect authenticated accounts'
+          ;;
+        *)
+          printf 'error: unknown command %s\n' "$1"
+          printf '%s\n' 'help: valid commands are server, login, logout, accounts, permissions, help'
+          exit 2
+          ;;
+      esac
+    '';
+  };
+  slackAgentGateway = pkgs.callPackage ./packages/slack-agent-gateway/package.nix { };
+  slackAgentConfigDir = "${config.home.homeDirectory}/.config/slack-agent-gateway";
+  slackAgentEnvFile = "${slackAgentConfigDir}/env";
+  slackCopilotMcp = pkgs.callPackage ./packages/slack-copilot-mcp/package.nix { };
+  slackCopilotConfigDir = "${config.home.homeDirectory}/.config/slack-copilot";
+  slackCopilotEnvFile = "${slackCopilotConfigDir}/env";
+  claudeBin = "${config.home.homeDirectory}/.local/bin/claude";
+  codexBin = "${config.home.homeDirectory}/.npm-global/bin/codex";
 in
 
 {
@@ -60,6 +141,9 @@ in
     noto-fonts-cjk-sans
     noto-fonts-color-emoji
     font-awesome
+    outlookMcp
+    slackAgentGateway
+    slackCopilotMcp
   ];
   fonts.fontconfig.enable = true;
   home.sessionVariables = {
@@ -310,6 +394,50 @@ in
   home.file.".claude/skills/ship-pr/SKILL.md".source =
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.claude/skills/ship-pr/SKILL.md";
 
+  home.file.".config/opencode/opencode.json".text = builtins.toJSON {
+    "$schema" = "https://opencode.ai/config.json";
+    mcp.outlook = {
+      type = "local";
+      command = [ "outlook-mcp" "server" ];
+      enabled = true;
+    };
+    mcp."slack-copilot" = {
+      type = "local";
+      command = [
+        "slack-copilot-mcp"
+        "server"
+        "--env-file"
+        slackCopilotEnvFile
+      ];
+      enabled = true;
+    };
+  };
+  home.file.".gemini/config/mcp_config.json".text = builtins.toJSON {
+    mcpServers.outlook = {
+      command = "outlook-mcp";
+      args = [ "server" ];
+    };
+    mcpServers."slack-copilot" = {
+      command = "slack-copilot-mcp";
+      args = [ "server" "--env-file" slackCopilotEnvFile ];
+    };
+  };
+  home.file.".gemini/config/skills.json".text = builtins.toJSON {
+    entries = [
+      { path = "${config.home.homeDirectory}/.agents/skills"; }
+    ];
+  };
+  home.file.".gemini/antigravity-cli/mcp_config.json".text = builtins.toJSON {
+    mcpServers.outlook = {
+      command = "outlook-mcp";
+      args = [ "server" ];
+    };
+    mcpServers."slack-copilot" = {
+      command = "slack-copilot-mcp";
+      args = [ "server" "--env-file" slackCopilotEnvFile ];
+    };
+  };
+
   home.activation.installVscodeExtensions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     if [ -x ${lib.escapeShellArg vscodeBin} ]; then
       installed_extensions="$(${lib.escapeShellArg vscodeBin} --list-extensions)"
@@ -322,4 +450,64 @@ in
       echo "warning: VS Code CLI not found at ${vscodeBin}; extensions will be installed on the next rebuild"
     fi
   '';
+
+  home.activation.configurePersonalMcps = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    export PATH=${lib.escapeShellArg (lib.makeBinPath [ pkgs.nodejs_22 ])}:"$PATH"
+
+    if [ -x ${lib.escapeShellArg claudeBin} ]; then
+      run ${lib.escapeShellArg claudeBin} mcp remove --scope user outlook >/dev/null 2>&1 || true
+      run ${lib.escapeShellArg claudeBin} mcp add --scope user outlook -- outlook-mcp server
+      run ${lib.escapeShellArg claudeBin} mcp remove --scope user slack-copilot >/dev/null 2>&1 || true
+      run ${lib.escapeShellArg claudeBin} mcp add --scope user slack-copilot -- \
+        slack-copilot-mcp server --env-file ${lib.escapeShellArg slackCopilotEnvFile}
+    fi
+
+    if [ -x ${lib.escapeShellArg codexBin} ]; then
+      run ${lib.escapeShellArg codexBin} mcp remove outlook >/dev/null 2>&1 || true
+      run ${lib.escapeShellArg codexBin} mcp add outlook -- outlook-mcp server
+      run ${lib.escapeShellArg codexBin} mcp remove slack-copilot >/dev/null 2>&1 || true
+      run ${lib.escapeShellArg codexBin} mcp add slack-copilot -- \
+        slack-copilot-mcp server --env-file ${lib.escapeShellArg slackCopilotEnvFile}
+    fi
+  '';
+
+  home.activation.prepareSlackConfiguration = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${pkgs.coreutils}/bin/install -d -m 0700 \
+      ${lib.escapeShellArg slackAgentConfigDir} \
+      ${lib.escapeShellArg "${slackAgentConfigDir}/logs"} \
+      ${lib.escapeShellArg slackCopilotConfigDir}
+  '';
+
+  launchd.agents.slack-agent-gateway = {
+    enable = true;
+    config = {
+      ProgramArguments = [
+        "${slackAgentGateway}/bin/slack-agent-gateway"
+        "serve"
+        "--env-file"
+        slackAgentEnvFile
+      ];
+      EnvironmentVariables = {
+        HOME = config.home.homeDirectory;
+        LANG = "en_US.UTF-8";
+        PATH = lib.concatStringsSep ":" [
+          "${config.home.homeDirectory}/.local/bin"
+          "${config.home.homeDirectory}/.npm-global/bin"
+          "${config.home.homeDirectory}/.nix-profile/bin"
+          "/etc/profiles/per-user/${user}/bin"
+          "/run/current-system/sw/bin"
+          "/usr/bin"
+          "/bin"
+        ];
+        USER = config.home.username;
+      };
+      WorkingDirectory = config.home.homeDirectory;
+      RunAtLoad = true;
+      KeepAlive.Crashed = true;
+      ProcessType = "Background";
+      ThrottleInterval = 30;
+      StandardOutPath = "${slackAgentConfigDir}/logs/stdout.log";
+      StandardErrorPath = "${slackAgentConfigDir}/logs/stderr.log";
+    };
+  };
 }

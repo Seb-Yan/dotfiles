@@ -8,6 +8,11 @@ home/.config/herdr/*.sock
 result
 result-*
 
+# Python build and test artifacts
+__pycache__/
+*.py[cod]
+.venv/
+
 # Pi credentials and Home Manager adoption backups stay local
 /home/.pi/agent/auth.json
 /home/.pi/agent/**/*.backup
