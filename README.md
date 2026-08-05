@@ -22,6 +22,7 @@ Running the switch builds:
 - Editor (Neovim config with the rose-pine moon theme)
 - Terminal (WezTerm config with the rose-pine moon theme and dimmed unfocused windows)
 - Agent configs (Claude, Codex, opencode all share one AGENTS.md)
+- Remote agent workflow (`remote-claude`: Claude Code runs locally, its Bash tool runs on an SSH host)
 - Optional Pi theme and local extensions, generic UI settings and model overrides, plus two deliberately pinned third-party Pi packages
 
 ## Prerequisites
@@ -137,6 +138,30 @@ If you don't use it, just remove it from `brews` in your copy.
 The files under `home/` are the real files - editing them here is editing your live config, no rebuild needed to see the change in your editor.
 `home.nix` uses `mkOutOfStoreSymlink` to point paths like `~/.config/nvim` straight at `home/.config/nvim` in this repo, so the two never drift out of sync.
 You only run `./rebuild.sh` when you change something that isn't just a symlinked file, like a package list or a system default.
+
+## Remote agent workflow
+
+Run the agent harness on this Mac, but have its shell commands execute on a remote machine.
+This gives you the server's real toolchain, dependencies, and network position without installing or authenticating any harness there.
+
+```sh
+cd ~/github/myproject
+remote-claude myhost            # any host that plain `ssh myhost` already reaches
+```
+
+`remote-claude` mirrors the current directory to the same path relative to the remote home directory, so `~/github/myproject` locally becomes `~/github/myproject` on the host.
+It then hands off to [claude-remote-shell](https://github.com/torarnv/claude-remote-shell), which points `CLAUDE_CODE_SHELL` at itself so every Bash tool command is forwarded over SSH, and keeps the two directories in step with a [Mutagen](https://github.com/mutagen-io/mutagen) two-way sync.
+File tools (Read, Edit, Grep) keep working against the local mirror at local-filesystem speed.
+Mutagen pushes its own agent binary over the SSH connection, so the remote side needs nothing but an SSH login.
+
+Host names, addresses, and keys stay in your own `~/.ssh/config`, which this repo deliberately does not manage.
+
+Before the first run on a project, have the working tree on one side only, and let the first sync populate the other.
+If both sides already hold different versions of the same files, the sync mode resolves conflicts in favour of the local copy.
+
+Two limits are worth knowing.
+Only Claude Code has a supported hook for this; Codex's remote mode needs `codex` installed on the host, and the available opencode SSH plugin disables its file tools in remote mode, which does not suit editing code.
+And absolute paths baked into file *contents* are not translated, so tooling that records them (git worktrees, some build caches) can misbehave.
 
 ## Optional Pi configuration
 

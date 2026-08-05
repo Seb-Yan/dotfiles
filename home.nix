@@ -87,6 +87,63 @@ let
       esac
     '';
   };
+  claudeRemoteShell = pkgs.callPackage ./packages/claude-remote-shell/package.nix { };
+  remoteClaude = pkgs.writeShellApplication {
+    name = "remote-claude";
+    runtimeInputs = [ claudeRemoteShell pkgs.mutagen pkgs.jq pkgs.gawk pkgs.openssh ];
+    text = ''
+      usage() {
+        printf '%s\n' \
+          'bin: remote-claude' \
+          'description: Run Claude Code locally with its Bash tool executing on an SSH host' \
+          'usage: remote-claude <ssh-host> [claude args...]' \
+          'behavior[3]:' \
+          '  Mirrors the current directory to the same path under the remote home' \
+          '  Bash tool commands run on the host; file tools stay local over a Mutagen sync' \
+          '  Host must be reachable as: ssh <ssh-host>' \
+          'notes[2]:' \
+          '  Run from inside a directory under the home directory' \
+          '  For auto-approved Bash, call claude-remote-shell-yolo <host>:<path> directly'
+      }
+
+      case "''${1:-}" in
+        ""|help|--help|-h)
+          usage
+          [ -z "''${1:-}" ] && exit 2
+          exit 0
+          ;;
+      esac
+
+      host="$1"
+      shift
+
+      local_dir="$(pwd -P)"
+      case "$local_dir/" in
+        "$HOME"/*) ;;
+        *)
+          printf 'error: %s is not under %s\n' "$local_dir" "$HOME" >&2
+          printf 'help: remote-claude mirrors paths relative to the home directory\n' >&2
+          exit 1
+          ;;
+      esac
+      rel="''${local_dir#"$HOME"}"
+      rel="''${rel#/}"
+
+      if ! remote_home="$(ssh -o BatchMode=yes "$host" 'printf %s "$HOME"')"; then
+        printf 'error: cannot resolve the home directory on %s\n' "$host" >&2
+        printf 'help: check that ssh %s works without a password prompt\n' "$host" >&2
+        exit 1
+      fi
+
+      if [ -z "$rel" ]; then
+        remote_dir="$remote_home"
+      else
+        remote_dir="$remote_home/$rel"
+      fi
+
+      exec claude-remote-shell "$host:$remote_dir" "$@"
+    '';
+  };
   slackAgentGateway = pkgs.callPackage ./packages/slack-agent-gateway/package.nix { };
   slackAgentConfigDir = "${config.home.homeDirectory}/.config/slack-agent-gateway";
   slackAgentEnvFile = "${slackAgentConfigDir}/env";
@@ -141,6 +198,9 @@ in
     noto-fonts-cjk-sans
     noto-fonts-color-emoji
     font-awesome
+    mutagen
+    claudeRemoteShell
+    remoteClaude
     outlookMcp
     slackAgentGateway
     slackCopilotMcp
