@@ -90,7 +90,14 @@ let
   claudeRemoteShell = pkgs.callPackage ./packages/claude-remote-shell/package.nix { };
   remoteClaude = pkgs.writeShellApplication {
     name = "remote-claude";
-    runtimeInputs = [ claudeRemoteShell pkgs.mutagen pkgs.jq pkgs.gawk pkgs.openssh ];
+    # Deliberately no openssh here. claude-remote-shell opens an SSH
+    # ControlMaster in this process and the Bash tool wrapper later reuses that
+    # socket from a login shell, where PATH resolves to /usr/bin/ssh. Putting a
+    # second OpenSSH on PATH makes the master and its clients different
+    # versions, and the mux protocol is not compatible across versions: the
+    # master closes the control connection and every command fails with
+    # "mux_client_request_session: write packet: Broken pipe".
+    runtimeInputs = [ claudeRemoteShell pkgs.mutagen pkgs.jq pkgs.gawk ];
     text = ''
       usage() {
         printf '%s\n' \
@@ -141,7 +148,14 @@ let
         remote_dir="$remote_home/$rel"
       fi
 
-      exec claude-remote-shell "$host:$remote_dir" "$@"
+      # Claude Code's sandbox is a local macOS mechanism. With the Bash tool
+      # executing on another machine it protects nothing there, and it exports
+      # HTTP_PROXY pointing at a localhost port that only exists on this Mac,
+      # which breaks every remote command that touches the network. Turn it off
+      # for remote sessions so the host's own environment applies instead.
+      exec claude-remote-shell "$host:$remote_dir" \
+        --settings '{"sandbox":{"enabled":false,"failIfUnavailable":false,"allowUnsandboxedCommands":true}}' \
+        "$@"
     '';
   };
   slackAgentGateway = pkgs.callPackage ./packages/slack-agent-gateway/package.nix { };

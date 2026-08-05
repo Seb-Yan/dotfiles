@@ -156,6 +156,10 @@ Mutagen pushes its own agent binary over the SSH connection, so the remote side 
 
 Host names, addresses, and keys stay in your own `~/.ssh/config`, which this repo deliberately does not manage.
 
+`remote-claude` turns Claude Code's sandbox off for the session, because a local macOS sandbox cannot constrain another machine and its proxy variables point at ports that only exist on this Mac.
+One consequence is that `autoAllowBashIfSandboxed` no longer applies, so Bash commands ask for approval again.
+That is the honest position for commands running unsandboxed on a real host; pass `--dangerously-skip-permissions`, or call `claude-remote-shell-yolo <host>:<path>` directly, when you want the old flow back.
+
 Before the first run on a project, have the working tree on one side only, and let the first sync populate the other.
 If both sides already hold different versions of the same files, the sync mode resolves conflicts in favour of the local copy.
 
