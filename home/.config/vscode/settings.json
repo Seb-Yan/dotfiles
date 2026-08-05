@@ -55,5 +55,7 @@
     "workbench.editor.enablePreview": false,
     "window.commandCenter": true,
     "explorer.confirmDelete": true,
-    "explorer.confirmDragAndDrop": true
+    "explorer.confirmDragAndDrop": true,
+    "claudeCode.preferredLocation": "panel",
+    "terminal.integrated.initialHint": false
 }
