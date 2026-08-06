@@ -88,75 +88,8 @@ let
     '';
   };
   claudeRemoteShell = pkgs.callPackage ./packages/claude-remote-shell/package.nix { };
-  remoteClaude = pkgs.writeShellApplication {
-    name = "remote-claude";
-    # Deliberately no openssh here. claude-remote-shell opens an SSH
-    # ControlMaster in this process and the Bash tool wrapper later reuses that
-    # socket from a login shell, where PATH resolves to /usr/bin/ssh. Putting a
-    # second OpenSSH on PATH makes the master and its clients different
-    # versions, and the mux protocol is not compatible across versions: the
-    # master closes the control connection and every command fails with
-    # "mux_client_request_session: write packet: Broken pipe".
-    runtimeInputs = [ claudeRemoteShell pkgs.mutagen pkgs.jq pkgs.gawk ];
-    text = ''
-      usage() {
-        printf '%s\n' \
-          'bin: remote-claude' \
-          'description: Run Claude Code locally with its Bash tool executing on an SSH host' \
-          'usage: remote-claude <ssh-host> [claude args...]' \
-          'behavior[3]:' \
-          '  Mirrors the current directory to the same path under the remote home' \
-          '  Bash tool commands run on the host; file tools stay local over a Mutagen sync' \
-          '  Host must be reachable as: ssh <ssh-host>' \
-          'notes[2]:' \
-          '  Run from inside a directory under the home directory' \
-          '  For auto-approved Bash, call claude-remote-shell-yolo <host>:<path> directly'
-      }
-
-      case "''${1:-}" in
-        ""|help|--help|-h)
-          usage
-          [ -z "''${1:-}" ] && exit 2
-          exit 0
-          ;;
-      esac
-
-      host="$1"
-      shift
-
-      local_dir="$(pwd -P)"
-      case "$local_dir/" in
-        "$HOME"/*) ;;
-        *)
-          printf 'error: %s is not under %s\n' "$local_dir" "$HOME" >&2
-          printf 'help: remote-claude mirrors paths relative to the home directory\n' >&2
-          exit 1
-          ;;
-      esac
-      rel="''${local_dir#"$HOME"}"
-      rel="''${rel#/}"
-
-      if ! remote_home="$(ssh -o BatchMode=yes "$host" 'printf %s "$HOME"')"; then
-        printf 'error: cannot resolve the home directory on %s\n' "$host" >&2
-        printf 'help: check that ssh %s works without a password prompt\n' "$host" >&2
-        exit 1
-      fi
-
-      if [ -z "$rel" ]; then
-        remote_dir="$remote_home"
-      else
-        remote_dir="$remote_home/$rel"
-      fi
-
-      # Claude Code's sandbox is a local macOS mechanism. With the Bash tool
-      # executing on another machine it protects nothing there, and it exports
-      # HTTP_PROXY pointing at a localhost port that only exists on this Mac,
-      # which breaks every remote command that touches the network. Turn it off
-      # for remote sessions so the host's own environment applies instead.
-      exec claude-remote-shell "$host:$remote_dir" \
-        --settings '{"sandbox":{"enabled":false,"failIfUnavailable":false,"allowUnsandboxedCommands":true}}' \
-        "$@"
-    '';
+  remoteClaude = pkgs.callPackage ./packages/remote-claude/package.nix {
+    claude-remote-shell = claudeRemoteShell;
   };
   slackAgentGateway = pkgs.callPackage ./packages/slack-agent-gateway/package.nix { };
   slackAgentConfigDir = "${config.home.homeDirectory}/.config/slack-agent-gateway";
@@ -456,6 +389,8 @@ in
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/nvim";
   home.file.".config/herdr".source =
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/herdr";
+  home.file.".mutagen.yml".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.mutagen.yml";
   home.file.".claude/settings.json".source =
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.claude/settings.json";
 

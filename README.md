@@ -163,6 +163,15 @@ That is the honest position for commands running unsandboxed on a real host; pas
 Before the first run on a project, have the working tree on one side only, and let the first sync populate the other.
 If both sides already hold different versions of the same files, the sync mode resolves conflicts in favour of the local copy.
 
+Sync excludes are declared once in `home/.mutagen.yml`, which Mutagen reads as its global configuration, so every session inherits them and no per-project file is needed.
+`.git` is excluded there: the host holds the authoritative clone and git commands run on the host anyway, which keeps roughly half the bytes of a typical repository out of every session start.
+
+What a deletion does depends on whether a session is running, and it is worth knowing before you reach for `rm`.
+While a session is live, deleting a file locally deletes it on the host too, because that is what synchronising a deletion means.
+Emptying the whole directory is refused instead of obeyed: Mutagen halts with `halted-on-root-emptied` and the host keeps its files.
+With no session running, a locally deleted file is restored from the host on the next run rather than removed there, because a freshly created session has no ancestor snapshot to read the absence as a deletion.
+`remote-claude` creates and terminates its own session on every run specifically to keep that last property.
+
 Two limits are worth knowing.
 Only Claude Code has a supported hook for this; Codex's remote mode needs `codex` installed on the host, and the available opencode SSH plugin disables its file tools in remote mode, which does not suit editing code.
 And absolute paths baked into file *contents* are not translated, so tooling that records them (git worktrees, some build caches) can misbehave.

@@ -1,0 +1,13 @@
+# Mutagen's global configuration. Every session inherits these defaults,
+# including the one claude-remote-shell creates for itself, so the remote agent
+# workflow needs no per-project file.
+sync:
+  defaults:
+    ignore:
+      paths:
+        # The host holds the authoritative clone and the Bash tool runs there,
+        # so git works remotely without moving the object store on every start.
+        # Excluded by path rather than through `vcs: true`, because
+        # claude-remote-shell reads the vcs flag as proof that the host has no
+        # repository and tells the model to avoid git entirely.
+        - ".git"
